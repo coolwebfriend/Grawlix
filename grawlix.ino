@@ -6,29 +6,29 @@
 #include "DaisyDuino.h"
 using namespace daisy;
 
-// Pin                   //In/Out   //Device  //Pin     //Purpose
-const int cv1     = 22;  // In from   J1                   (X CV)
-const int cv2     = 23;  // In from   J2                   (Y CV)
-const int cv3     = 24;  // In from   J3                   (1v/Oct)
-const int cv4     = 25;  // In from   J4                   (Freq)
-const int rdm     = 26;  // In from                        (Noise Source)
-const int gate1   = 27;  // In from   J5                   (Gate)
-const int button1 = 28;  // In from   B1      pin 3.       (Button)
-const int sw1     = 29;  // In from   switch 1 pin 1 (Phoneme Mode)
-const int sw2     = 30;  // In from   switch 1 pin 3 (Phoneme Mode)
-const int sw3     = 31;  // In from   switch 2 pin 1 (Advance Mode)
-const int sw4     = 32;  // In from   switch 2 pin 3 (Advance Mode)
-const int enc1    = 33;  // In fron   encoder 1 pin 1
-const int enc2    = 34;  // In from   encoder 1 pin 2
-const int enc3    = 35;  // In from   encoder switch
-const int vAr     = 10;  // In from   SC-01 pin 8 (A/R, Acknowledge)
-const int vStb    = 11;  //  Out to   SC-01 pin 7 (STB, Strobe)
-const int vClk    = 12;  //  Out to   SC-01 pin 15 (MCX, External Clock)
-const int srData  = 13;  //  Out to   74HC595 pin 14 (DS, Serial In)
-const int srLatch = 14;  //  Out to   74HC595 pin 12 (STCP Shift Clock In)
-const int srClk   = 15;  //  Out to   74HC595 pin 11 (SHCP Storage Clock In)
-const int audioIn = 16;  // In from   SC-01 pin 22 (AO = Audio Out)
-const int audioOut = 18; // Out to    J5 audio out jack
+// Pin                    | In/Out  | Device, Pin | Purpose
+const int cv1     = 22;  // In from   J1, sleeve    (X CV)
+const int cv2     = 23;  // In from   J2, sleeve    (Y CV)
+const int cv3     = 24;  // In from   J3, sleeve    (1v/Oct)
+const int cv4     = 25;  // In from   J4, sleeve    (Freq)
+const int rdm     = 26;  // In from   n/a           (Noise Source)
+const int gate1   = 27;  // In from   J5, sleeve    (Gate)
+const int button1 = 28;  // In from   B1, 3         (Button)
+const int sw1     = 29;  // In from   SW1, 1        (Phoneme Mode)
+const int sw2     = 30;  // In from   SW1, 3        (Phoneme Mode)
+const int sw3     = 31;  // In from   SW2, 1        (Advance Mode)
+const int sw4     = 32;  // In from   SW2, 3        (Advance Mode)
+const int enc1    = 33;  // In fron   ENC1, 1       (Memory Navigate)
+const int enc2    = 34;  // In from   ENC1, 2       (Memory Navigate)
+const int enc3    = 35;  // In from   ENC1, SW      (Memory Navigate)
+const int vAr     = 10;  // In from   SC-01, 8      (A/R, Acknowledge)
+const int vStb    = 11;  // Out to    SC-01, 7      (STB, Strobe)
+const int vClk    = 12;  // Out to    SC-01, 15     (MCX, External Clock)
+const int srData  = 13;  // Out to    74HC595, 14   (DS, Serial In)
+const int srLatch = 14;  // Out to    74HC595, 12   (STCP Shift Clock In)
+const int srClk   = 15;  // Out to    74HC595, 11   (SHCP Storage Clock In)
+const int audioIn = 16;  // In from   SC-01, 22     (AO = Audio Out)
+const int audioOut = 18; // Out to    J5, sleeve    (Audio Out)
 
 // @brief Create Daisy Hardware and control objects
 DaisyHardware hw;          
