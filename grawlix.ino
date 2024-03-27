@@ -333,7 +333,6 @@ void setup() {
   gate.Init(gate1, INPUT, false);
   encoder.Init(updateRate, enc1, enc2, enc3, INPUT, INPUT, INPUT);
 
-
   AnalogControl controls[4] = { x, y, voct, user };
   int cvPins[4] = { cv1, cv2, cv3, cv4 };
   for (int i = 0; i < 4; i++) { controls[i].InitBipolarCv(cvPins[i], updateRate); }
