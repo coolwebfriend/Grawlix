@@ -4,11 +4,10 @@
 /*===========================================================================*/
 
 /* TODO:
-* - Resolve Pin type issue in HardwarePWM class
 * - Add encoder-based memory navigation
 */
 
-#include "src/DaisyDuino/src/DaisyDuino.h"
+#include "DaisyDuino.h"
 using namespace daisy;
 
 // Pin                    | In/Out  | Device, Pin | Purpose
@@ -48,7 +47,8 @@ Encoder encoder;
 bool debug = false;
 
 // Prints a message to the serial monitor if debug == true.
-void debugPrint(String message) {
+void debugPrint(String message) 
+{
   bool* db = &debug;
   if (*db == true) {
     Serial.println(message);
@@ -79,7 +79,8 @@ const int vowelGrid[8][5] = {
   { 9, 33, 48, 23, 45 }
 };
 
-class Grawlix {
+class Grawlix 
+{
 public:
   /*
     * Determines the source of the synthesized phonemes.
@@ -101,7 +102,8 @@ public:
   volatile int memoryIndex = 0;
 
   //Updates a given mode based on the state of two switch values.
-  int updateMode(int mode, bool a, bool b) {
+  int updateMode(int mode, bool a, bool b) 
+  {
     if (!a && !b) { mode = 1; };
     if (a && !b) { mode = 2; };
     if (!a && b) { mode = 3; };
@@ -111,7 +113,8 @@ public:
   /*
     * Contains the input phonemes to be synthesized.
     */
-  class Phrase {
+  class Phrase 
+  {
   public:
     static const uint maxLength = 32;
     String symbols[maxLength];
@@ -119,7 +122,8 @@ public:
     int length = 32;
 
     //  Populate phrase with data from a memory slot.
-    void setFromMemory() {
+    void setFromMemory() 
+    {
       int slot = 1;
       // int mem = memorySlot;
       // length = mem.length;
@@ -132,7 +136,8 @@ public:
     }
 
     // Populate phrase of length 1 with symbol from the Vowel Grid
-    int setFromGrid(float x, float y) {
+    int setFromGrid(float x, float y) 
+    {
       length = 1;
       int xIndex = map(x, -1, 1, 0, 7);
       int yIndex = map(y, -1, 1, 0, 4);
@@ -141,13 +146,15 @@ public:
     }
 
     // Populate phrase with random values.
-    void setFromRandom() {
+    void setFromRandom() 
+    {
       randomSeed(analogRead(rdm));
       static int minLen = 4;
       static int maxLen = 10;
       length = random(minLen, maxLen);
 
-      for (int i = 0; i < length; i++) {
+      for (int i = 0; i < length; i++) 
+      {
         randomSeed(analogRead(rdm));
         int index = random(0, 63);
         symbols[i] = validSymbols[index];
@@ -165,12 +172,14 @@ public:
     then encodes a payload byte to send to the SC-01. See Votrax SC-01 
     documentation for more details on what the chip expects. 
     */
-  class Phoneme {
+  class Phoneme 
+  {
   public:
     int symbolIndex = 3;      // 0 ~ 64
     int inflectionIndex = 0;  // 0 ~ 3
     byte payload = 0;         // 8 bits to send to SC-01.
-    Phoneme(String symbol, int inflection) {
+    Phoneme(String symbol, int inflection) 
+    {
       for (int i = 0; i < 64; i++) {
         symbolIndex = (inflection == symbol[i]) ? i : 3;
       }
@@ -178,9 +187,10 @@ public:
       payload = inflectionIndex << 6;
       payload = payload | symbolIndex;
       debugPrint(
-        "Phoneme" + symbol + ", "
-        + String(inflectionIndex) + " = "
-        + String(payload));
+                "Phoneme" + symbol + ", "
+                + String(inflectionIndex) + " = "
+                + String(payload)
+                );
     }
   };
 
@@ -190,13 +200,15 @@ public:
     bool ar;
 
     // Return true when AR pin goes high.
-    bool arUpdate() {
+    bool arUpdate() 
+    {
       digitalRead(vAr) == HIGH ? true : false;
       debugPrint("Ar pulse received.");
     }
 
     // Trigger SC-01 input register latch.
-    void strobe() {
+    void strobe() 
+    {
       static int strobeTime = 150;
       digitalWrite(vStb, HIGH);
       // @todo How can this be acheived:
@@ -208,7 +220,8 @@ public:
     }
 
     // Write a byte to the shift register feeding the SC-01
-    void shiftUpdate(byte data) {
+    void shiftUpdate(byte data) 
+    {
       shiftOut(srData, srClk, MSBFIRST, data);
       digitalWrite(srLatch, HIGH);
       digitalWrite(srLatch, LOW);
@@ -218,28 +231,35 @@ public:
   Votrax sc01;
 
   //  Wait until it's ok to advance to next phoneme
-  void advListen() {
+  void advListen() 
+  {
     volatile bool advance;
     updateMode(advanceMode, aSw1.Pressed(), aSw2.Pressed());
-    switch (advanceMode) {
-      case 1:
+    switch (advanceMode) 
+    {
+      case 1: // Auto Mode
         debugPrint("Advance Mode: Auto Mode");
         advance = sc01.arUpdate();
-      case 2:
+        break;
+      case 2: // Button Mode
         debugPrint("Advance Mode: Button Mode");
         advance = sc01.arUpdate() && button.Pressed();
-      case 3:
+        break;
+      case 3: // Gate Mode
         debugPrint("Advance Mode: Gate Mode");
         advance = sc01.arUpdate() && gate.State();
+        break;
     }
     debugPrint("Waiting to Advance...");
     while (!advance) {}
   }
 
   // Outputs a given phrase.
-  void say(Phrase phrase) {
+  void say(Phrase phrase) 
+  {
     debugPrint("Synthesizing phonemes...");
-    for (int i = 0; i < phrase.length; i++) {
+    for (int i = 0; i < phrase.length; i++) 
+    {
       updateMode(advanceMode, aSw1.Pressed(), aSw2.Pressed());
       Phoneme p(phrase.symbols[i], phrase.inflections[i]);
       debugPrint("Inflection: " + String(p.inflectionIndex));
@@ -249,79 +269,127 @@ public:
     }
   }
 
+
+
   //Main loop.
-  void main() {
+  void main() 
+  {
     updateMode(phonemeMode, pSw1.Pressed(), pSw2.Pressed());
-    switch (phonemeMode) {
+    switch (phonemeMode) 
+    {
       case 1:  // Memory Mode
         debugPrint("Phoneme Mode: Memory Mode");
         phrase.setFromMemory();
+        break;
       case 2:  // XY Mode
         debugPrint("Phoneme Mode: Grid Mode");
         phrase.setFromGrid(x.Process(), y.Process());
+        break;
       case 3:  // Random Mode
         debugPrint("Phoneme Mode: Random Mode");
         phrase.setFromRandom();
+        break;
     };
     say(phrase);
     while (!button.Pressed()) {}
   }
 };
 
+
 /*
-* Generates a square wave whose frequency is set based on
-* timer/counter divisions from the CPU clock, and routes 
-* the output to a given pin. 
+* Hardware timer PMW. Code generated from STM32CubeIDE.
 */
-class HardwarePWM {
+class HardwarePWM
+{
   public:
-    uint32_t prescaler          = 1;
-    uint32_t system_clock_rate  = System::GetPClk2Freq() / prescaler;
-    uint32_t system_tick_period = 1/system_clock_rate;
-    uint32_t default_period     = 556; //* Center freq of SC-01
-    TimerHandle timer;
-    TimChannel pwm;
+  uint32_t kHz                      = 10^3;
+  uint32_t MHz                      = 10^6;
+  uint32_t prescaler                = 0;
+  uint32_t system_clock_rate        = System::GetPClk2Freq();
+  uint32_t default_freq             = 720 * kHz;
+  uint32_t default_counter_period   = (system_clock_rate / default_freq)-1;
+  uint32_t default_pw               = 0.5;
+  uint32_t default_pw_period        = default_counter_period * default_pw;
+  uint32_t target_freq              = default_freq;
+  uint32_t target_pw                = 0.5;
 
-    void Init()
+  /*
+  //STM32 Pin:      PA0 
+  //DaisyDuino pin: D19
+  //Seed pin:       A4
+  */
+  TIM_HandleTypeDef htim3;
+
+  void Init()
+  {
+    TIM_ClockConfigTypeDef sClockSourceConfig = {0};
+    TIM_MasterConfigTypeDef sMasterConfig = {0};
+    TIM_OC_InitTypeDef sConfigOC = {0};
+    htim3.Instance = TIM3;
+    htim3.Init.Prescaler = 0;
+    htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+    htim3.Init.Period = default_counter_period;
+    htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+    htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_ENABLE;
+    if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
     {
-      // Configure timer
-      TimerHandle::Config tim_cfg;
-      tim_cfg.periph = TimerHandle::Config::Peripheral::TIM_3;
-      tim_cfg.dir = TimerHandle::Config::CounterDir::UP;
-      timer.Init(tim_cfg);
-
-      // Initialize timer
-      timer.SetPrescaler(prescaler - 1); /**< ps=0 is divide by 1 and so on.*/
-      timer.SetPeriod(default_period);
-      timer.Start();
-      
-      // Configure hardware pwm
-      TimChannel::Config chn_cfg;
-      chn_cfg.tim = &timer;
-      chn_cfg.chn = TimChannel::Config::Channel::ONE;
-      chn_cfg.mode = TimChannel::Config::Mode::PWM_GENERATION;
-
-      // Initialize hardware pwm
-      pwm.Init(chn_cfg);
-      pwm.SetPwm(default_period/2); //*<50% duty cycle>
-      pwm.Start();
+      Error_Handler();
     }
-
-    //* Set hardware pwm frequency and duty cycle. */
-    void setFreq(uint32_t target_freq_hz, uint32_t duty_cycle)
+    sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+    if (HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig) != HAL_OK)
     {
-      uint32_t target_freq_period = 1/target_freq_hz;
-      uint32_t target_freq_ticks = target_freq_period / system_tick_period;
-      pwm.SetPwm(target_freq_ticks/2); //* 50% Duty Cycle
-      timer.SetPeriod(target_freq_ticks);
+      Error_Handler();
     }
+    if (HAL_TIM_PWM_Init(&htim3) != HAL_OK)
+    {
+      Error_Handler();
+    }
+    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+    sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+    if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+    {
+      Error_Handler();
+    }
+    sConfigOC.OCMode = TIM_OCMODE_PWM1;
+    sConfigOC.Pulse = default_pw_period;
+    sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+    sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+    if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_1) != HAL_OK)
+    {
+      Error_Handler();
+    }
+  }
+
+  uint32_t freqToTicks(uint32_t freq)
+  {
+    uint32_t ticks = (system_clock_rate / freq) - 1;
+    return ticks;
+  }
+
+  void setFreq(uint32_t freq)
+  {
+    target_freq = freq;
+    uint32_t target_ticks        = freqToTicks(target_freq);
+    uint32_t updated_pw_period   = ( target_ticks * target_pw );
+
+    htim3.Instance->ARR     = target_ticks;
+    htim3.Instance->CCR1    = updated_pw_period;
+  }
+
+  void setPulseWidth(uint32_t pw)
+  {
+    target_pw = pw;
+    uint32_t target_pw_period = (freqToTicks(target_freq) * target_pw)-1;
+    htim3.Instance->CCR1 = target_pw_period;
+  }
 };
 
 HardwarePWM sc01Clock;
 
-Grawlix g;
+Grawlix grawl;
 
-void setup() {
+void setup() 
+{
   // Initialize Daisy hardware.
   hw = DAISY.init(DAISY_SEED, AUDIO_SR_48K);
   num_channels = hw.num_channels;
@@ -335,11 +403,17 @@ void setup() {
 
   AnalogControl controls[4] = { x, y, voct, user };
   int cvPins[4] = { cv1, cv2, cv3, cv4 };
-  for (int i = 0; i < 4; i++) { controls[i].InitBipolarCv(cvPins[i], updateRate); }
+  for (int i = 0; i < 4; i++) 
+  { 
+    controls[i].InitBipolarCv(cvPins[i], updateRate); 
+  }
 
   Switch switches[5] = { pSw1, pSw2, pSw1, pSw2, button };
   int switchPins[5] = { sw1, sw2, sw3, sw4, button1 };
-  for (int i = 0; i < 5; i++) { switches[i].Init(1000, false, switchPins[i], INPUT); }
+  for (int i = 0; i < 5; i++) 
+  { 
+    switches[i].Init(1000, false, switchPins[i], INPUT); 
+  }
 
   // Initialize Votrax data i/o pins.
   pinMode(vAr, INPUT);
@@ -351,5 +425,5 @@ void setup() {
 }
 
 void loop() {
-  g.main();
+  grawl.main();
 }
