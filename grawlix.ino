@@ -64,9 +64,12 @@ const int vowelGrid[8][5] = {
   { 9, 33, 48, 23, 45 }
 };
 
+
 class Grawlix 
 {
 public:
+
+
   /*
     * Determines the source of the synthesized phonemes.
     * 1 = Memory Mode:     Pick from one of 8 saved phrases. (TODO)
@@ -124,10 +127,11 @@ public:
     int setFromGrid(float x, float y) 
     {
       length = 1;
-      int xIndex = map(x, -1, 1, 0, 7);
-      int yIndex = map(y, -1, 1, 0, 4);
+      int xIndex = map(x, 0, 10^16-1, 0, 7);
+      int yIndex = map(y, 0, 10^16-1, 0, 4);
       symbols[0] = validSymbols[vowelGrid[xIndex][yIndex]];
-      debugPrint("Grid coords #xIndex , #yIndex = " + symbols[0]);
+      debugPrint("Grid coords " + String(xIndex) + ", " + 
+                  String(yIndex) + " = " + symbols[0]);
     }
 
     // Populate phrase with random values.
@@ -268,7 +272,7 @@ public:
         break;
       case 2:  // XY Mode
         debugPrint("Phoneme Mode: Grid Mode");
-        phrase.setFromGrid(x.Process(), y.Process());
+        phrase.setFromGrid(x.Value(), y.Value());
         break;
       case 3:  // Random Mode
         debugPrint("Phoneme Mode: Random Mode");
@@ -297,6 +301,8 @@ void AudioCallback(float **in, float **out, size_t size)
 class HardwarePWM
 {
   public:
+  float freq_knob;
+  float voct_multiplier; 
   uint32_t kHz                      = 10^3;
   uint32_t MHz                      = 10^6;
   uint32_t prescaler                = 0;
@@ -362,9 +368,20 @@ class HardwarePWM
     return ticks;
   }
 
-  void setFreq(uint32_t freq)
+  void setFreq(uint16_t freq_knob, uint16_t voct_val)
   {
-    target_freq = freq;
+    const float multipliers[37] = {
+      0.500, 0.530, 0.561, 0.595, 0.630, 0.667, 
+      0.707, 0.749, 0.794, 0.841, 0.891, 0.944,
+      1.000, 1.059, 1.122, 1.189, 1.260, 1.335, 
+      1.414, 1.498, 1.587, 1.682, 1.782, 1.888,
+      2.000, 2.119, 2.245, 2.378, 2.520, 2.669, 
+      2.828, 2.996, 3.175, 3.363, 3.563, 3.775,
+      4.000
+    };
+    float knob = map(freq_knob,0,10^16-1,0.5,2);
+    float voct_mult = multipliers[map(voct_val,0,10^16-1,0,37)];
+    target_freq = (720 * MHz) * freq_knob * voct_val;
     uint32_t target_ticks        = freqToTicks(target_freq);
     uint32_t updated_pw_period   = ( target_ticks * target_pw );
 
@@ -417,6 +434,7 @@ void setup()
 
   // Initialize hardware pwm
   sc01Clock.Init();
+  sc01Clock.setFreq(freq.Value(), voct.Value());
 
   DAISY.begin(AudioCallback);
 }
