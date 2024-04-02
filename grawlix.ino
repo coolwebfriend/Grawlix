@@ -7,41 +7,26 @@
 * - Add encoder-based memory navigation
 */
 
-#include "DaisyDuino.h"
+#include "DaisyDuino.h" // Version 1.6.0
 using namespace daisy;
 
-// Pin                    | In/Out  | Device, Pin | Purpose
-const int cv1 = 22;       // In from   J1, sleeve    (X CV)
-const int cv2 = 23;       // In from   J2, sleeve    (Y CV)
-const int cv3 = 24;       // In from   J3, sleeve    (1v/Oct)
-const int cv4 = 25;       // In from   J4, sleeve    (Freq)
-const int rdm = 26;       // In from   n/a           (Noise Source)
-const int gate1 = 27;     // In from   J5, sleeve    (Gate)
-const int button1 = 28;   // In from   B1, 3         (Button)
-const int sw1 = 29;       // In from   SW1, 1        (Phoneme Mode)
-const int sw2 = 30;       // In from   SW1, 3        (Phoneme Mode)
-const int sw3 = 31;       // In from   SW2, 1        (Advance Mode)
-const int sw4 = 32;       // In from   SW2, 3        (Advance Mode)
-const int enc1 = 33;      // In fron   ENC1, 1       (Memory Navigate)
-const int enc2 = 34;      // In from   ENC1, 2       (Memory Navigate)
-const int enc3 = 35;      // In from   ENC1, SW      (Memory Navigate)
-const int vAr = 10;       // In from   SC-01, 8      (A/R, Acknowledge)
-const int vStb = 11;      // Out to    SC-01, 7      (STB, Strobe)
-const int vClk = 12;      // Out to    SC-01, 15     (MCX, External Clock)
-const int srData = 13;    // Out to    74HC595, 14   (DS, Serial In)
-const int srLatch = 14;   // Out to    74HC595, 12   (STCP Shift Clock In)
-const int srClk = 15;     // Out to    74HC595, 11   (SHCP Storage Clock In)
-const int audioIn = 16;   // In from   SC-01, 22     (AO = Audio Out)
-const int audioOut = 18;  // Out to    J5, sleeve    (Audio Out)
-
 // Create Daisy hardware and control objects
-DaisyHardware hw;
+DaisyHardware patch;
 static int num_channels;
 static float sample_rate;
-AnalogControl x, y, voct, user;
-Switch pSw1, pSw2, aSw1, aSw2, button;
+static float update_rate;
+AnalogControl x, y, voct, freq, rdm;
+Switch pSw1, pSw2, aSw1, aSw2, button1;
 GateIn gate;
 Encoder encoder;
+
+// Pin                    | In/Out  | Device, Pin | Purpose
+const int vAr = D2;       // In from   SC-01, 8      (A/R, Acknowledge)
+const int vStb = D3;      // Out to    SC-01, 7      (STB, Strobe)
+const int vClk = D1;      // Out to    SC-01, 15     (MCX, External Clock)
+const int srData = D6;    // Out to    74HC595, 14   (DS, Serial In)
+const int srLatch = D4;   // Out to    74HC595, 12   (STCP Shift Clock In)
+const int srClk = D5;     // Out to    74HC595, 11   (SHCP Storage Clock In)
 
 // Set this to true if you want to log messages.
 bool debug = false;
@@ -111,8 +96,8 @@ public:
   }
 
   /*
-    * Contains the input phonemes to be synthesized.
-    */
+  * Contains the input phonemes to be synthesized.
+  */
   class Phrase 
   {
   public:
@@ -148,14 +133,14 @@ public:
     // Populate phrase with random values.
     void setFromRandom() 
     {
-      randomSeed(analogRead(rdm));
+      randomSeed(rdm.Value());
       static int minLen = 4;
       static int maxLen = 10;
       length = random(minLen, maxLen);
 
       for (int i = 0; i < length; i++) 
       {
-        randomSeed(analogRead(rdm));
+        randomSeed(rdm.Value());
         int index = random(0, 63);
         symbols[i] = validSymbols[index];
         inflections[i] = random(0, 3);
@@ -225,6 +210,7 @@ public:
       shiftOut(srData, srClk, MSBFIRST, data);
       digitalWrite(srLatch, HIGH);
       digitalWrite(srLatch, LOW);
+      debugPrint("Shift register loaded, ready to strobe.");
     }
   };
 
@@ -243,7 +229,7 @@ public:
         break;
       case 2: // Button Mode
         debugPrint("Advance Mode: Button Mode");
-        advance = sc01.arUpdate() && button.Pressed();
+        advance = sc01.arUpdate() && button1.Pressed();
         break;
       case 3: // Gate Mode
         debugPrint("Advance Mode: Gate Mode");
@@ -270,7 +256,6 @@ public:
   }
 
 
-
   //Main loop.
   void main() 
   {
@@ -291,10 +276,20 @@ public:
         break;
     };
     say(phrase);
-    while (!button.Pressed()) {}
+    while (!button1.Pressed()) {}
   }
 };
 
+Grawlix grawl;
+
+void AudioCallback(float **in, float **out, size_t size)
+{
+  float amp = 1;
+  for (size_t i = 0; i < size; i++)
+  {
+    out[0][i] = in[0][i] * amp;
+  }
+}
 
 /*
 * Hardware timer PMW. Code generated from STM32CubeIDE.
@@ -314,9 +309,10 @@ class HardwarePWM
   uint32_t target_pw                = 0.5;
 
   /*
-  //STM32 Pin:      PA0 
-  //DaisyDuino pin: D19
-  //Seed pin:       A4
+  * Configured for  TIM3, Channel 1
+  * STM32 Pin:      PB4
+  * Seed pin:       A4
+  * Patch_SM pin:   D1
   */
   TIM_HandleTypeDef htim3;
 
@@ -386,34 +382,33 @@ class HardwarePWM
 
 HardwarePWM sc01Clock;
 
-Grawlix grawl;
-
 void setup() 
 {
+  Serial.begin(9600);
   // Initialize Daisy hardware.
-  hw = DAISY.init(DAISY_SEED, AUDIO_SR_48K);
-  num_channels = hw.num_channels;
+  update_rate = 1000;
+  patch = DAISY.init(DAISY_PATCH_SM, AUDIO_SR_48K);
+  num_channels = patch.num_channels;
   sample_rate = DAISY.get_samplerate();
   debugPrint("G R A W L I X  by heythats.cool");
-  int updateRate = 1000;
 
   // Initialize Daisy control objects.
-  gate.Init(gate1, INPUT, false);
-  encoder.Init(updateRate, enc1, enc2, enc3, INPUT, INPUT, INPUT);
-
-  AnalogControl controls[4] = { x, y, voct, user };
-  int cvPins[4] = { cv1, cv2, cv3, cv4 };
-  for (int i = 0; i < 4; i++) 
-  { 
-    controls[i].InitBipolarCv(cvPins[i], updateRate); 
-  }
-
-  Switch switches[5] = { pSw1, pSw2, pSw1, pSw2, button };
-  int switchPins[5] = { sw1, sw2, sw3, sw4, button1 };
-  for (int i = 0; i < 5; i++) 
-  { 
-    switches[i].Init(1000, false, switchPins[i], INPUT); 
-  }
+  x.Init(PIN_PATCH_SM_CV_4,update_rate);
+  y.Init(PIN_PATCH_SM_CV_3,update_rate);
+  voct.InitBipolarCv(PIN_PATCH_SM_CV_2, update_rate);
+  freq.Init(PIN_PATCH_SM_CV_1, update_rate);
+  rdm.Init(PIN_PATCH_SM_CV_5,update_rate);
+  //Initialize Daisy Switches
+  pSw1.Init(update_rate, false, PIN_PATCH_SM_A2, INPUT);
+  pSw2.Init(update_rate, false, PIN_PATCH_SM_A3, INPUT);
+  aSw1.Init(update_rate, false, PIN_PATCH_SM_A8, INPUT);
+  aSw2.Init(update_rate, false, PIN_PATCH_SM_A9, INPUT);
+  button1.Init(update_rate, false, PIN_PATCH_SM_B9, INPUT);
+  //Initialize Daisy GateIn
+  gate.Init(PIN_PATCH_SM_GATE_IN_1, INPUT, false);
+  //Initialize Daisy Encoder
+  encoder.Init(update_rate, PIN_PATCH_SM_D9, PIN_PATCH_SM_D8, 
+               PIN_PATCH_SM_D7, INPUT, INPUT, INPUT);
 
   // Initialize Votrax data i/o pins.
   pinMode(vAr, INPUT);
@@ -422,6 +417,8 @@ void setup()
 
   // Initialize hardware pwm
   sc01Clock.Init();
+
+  DAISY.begin(AudioCallback);
 }
 
 void loop() {
