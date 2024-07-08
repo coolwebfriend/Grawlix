@@ -5,6 +5,8 @@
 
 /* TODO:
 * - Add encoder-based memory navigation
+* - Add English -> IPA -> Votrax conversion 
+*     -https://github.com/greg-kennedy/p5-NRL-TextToPhoneme/blob/master/rules/ipa_to_votrax.json
 */
 
 #include "DaisyDuino.h" // Version 1.6.0
